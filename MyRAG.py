@@ -37,7 +37,7 @@ def chunks(teks):
 
 # VectorDB
 def VectorStore(docs):
-    db_name = "chroma_langchain_db"
+    db_name = "MyChromaDB"
 
     vector_store = Chroma(
         collection_name="example_collection",
