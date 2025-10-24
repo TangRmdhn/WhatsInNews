@@ -1,0 +1,19 @@
+# LangChain Core (Framework utama)
+langchain
+langchain-core
+langchain-community  # Untuk Loaders dan Vector Store
+langchain-text-splitters # Untuk memecah dokumen
+langchain_chroma
+
+# LLM dan Embeddings
+langchain-openai # Kalau lu pakai model OpenAI (GPT-4 dan text-embedding-3-small)
+
+# Document Loader (Untuk baca PDF)
+pypdf
+
+# Vector Store (Database untuk menyimpan embedding)
+chromadb
+langchain_chroma
+
+# User Interface
+streamlit
