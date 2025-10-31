@@ -3,7 +3,6 @@ import requests
 import json
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-# from IPython.display import Markdown, display, update_display
 from openai import OpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -23,9 +22,7 @@ headers = {
  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
 }
 
-# A class to represent a Webpage
 
-# Some websites need you to use proper headers when fetching them:
 headers = {
  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
 }
@@ -53,7 +50,6 @@ class Website:
     def get_contents(self):
         return f"Webpage Title:\n{self.title}\nWebpage Contents:\n{self.text}\n\n"
 
-# ed = Website("https://kumparan.com/kumparanhits/deddy-corbuzier-digugat-cerai-sabrina-chairunnisa-268k0HxQ2Xv/full")
 
 link_system_prompt = "You are provided with a list of links found on a webpage. \
 You are able to decide which of the links would be most relevant to include about the news headline, \
@@ -113,7 +109,7 @@ def get_fulltext_user_prompt(url):
     user_prompt = f"Headline Berita : {headline}\n"
     user_prompt += f"Berikut adalah isi halaman berita dan halaman relevan lainnya; gunakan informasi ini untuk membangun teks berita lengkap dalam teks biasa.\n"
     user_prompt += get_all_details(url)
-    user_prompt = user_prompt[:5000] # Truncate if more than 5,000 characters
+    user_prompt = user_prompt[:5000]
     return user_prompt
 
 def create_full_text(url):
@@ -135,7 +131,6 @@ def chunks(url):
     docs = text_to_docs(chunked)
     return docs
 
-# VectorDB
 def VectorStore(url):
     docs = chunks(url)
     db_name = "MyChromaDB"
@@ -172,6 +167,15 @@ def retrive(user):
 
     return full_context
 
+def stream_response_generator(response_stream):
+    """
+    Generator function to yield content chunks from the OpenAI stream.
+    """
+    for chunk in response_stream:
+    
+        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
 def LLM_chat(user):
     retrive_context = retrive(user)
     MODEL = "gpt-4o-mini"
@@ -193,9 +197,16 @@ def LLM_chat(user):
 """
 
     messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_prompt}]
-    response = openai.chat.completions.create(model=MODEL, messages=messages, temperature=0.7)
     
-    return response.choices[0].message.content
+
+    response_stream = openai.chat.completions.create(
+        model=MODEL, 
+        messages=messages, 
+        temperature=0.7,
+        stream=True
+    )
+    
+    return stream_response_generator(response_stream)
 
 system_prompt_summary = "Anda adalah asisten yang menganalisis konten beberapa halaman relevan dari situs web berita dan membuat kesimpulan serta inti berita untuk calon pembaca." \
 "Tanggapi dalam format Markdown. Sertakan detail jika Anda memiliki informasinya."
@@ -205,18 +216,19 @@ def get_summary_user_prompt(url):
     user_prompt = f"Headline berita : {headline}\n"
     user_prompt += f"Berikut adalah konten halaman berita dan halaman relevan lainnya; gunakan informasi ini untuk membangun kesimpulan dan inti berita dalam markdown..\n"
     user_prompt += get_all_details(url)
-    user_prompt = user_prompt[:5_000] # Truncate if more than 5,000 characters
+    user_prompt = user_prompt[:5_000]
     return user_prompt
 
 def create_summary(url):
-    VectorStore(url)
-    response = openai.chat.completions.create(
+
+    response_stream = openai.chat.completions.create(
         model=MODEL,
         messages=[
             {"role": "system", "content": system_prompt_summary},
             {"role": "user", "content": get_summary_user_prompt(url)}
           ],
+        stream=True
     )
-    result = response.choices[0].message.content
-    return result
+
+    return stream_response_generator(response_stream)
 
