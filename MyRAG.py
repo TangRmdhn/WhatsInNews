@@ -172,6 +172,15 @@ def retrive(user):
 
     return full_context
 
+def stream_response_generator(response_stream):
+    """
+    Generator function to yield content chunks from the OpenAI stream.
+    """
+    for chunk in response_stream:
+        # Cuma ambil bagian kontennya aja
+        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
 def LLM_chat(user):
     retrive_context = retrive(user)
     MODEL = "gpt-4o-mini"
@@ -193,9 +202,17 @@ def LLM_chat(user):
 """
 
     messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_prompt}]
-    response = openai.chat.completions.create(model=MODEL, messages=messages, temperature=0.7)
     
-    return response.choices[0].message.content
+    # 1. Panggil API OpenAI dengan stream=True
+    response_stream = openai.chat.completions.create(
+        model=MODEL, 
+        messages=messages, 
+        temperature=0.7,
+        stream=True # <<< UBAH INI JADI TRUE
+    )
+    
+    # 2. Kembalikan generator yang siap di-stream
+    return stream_response_generator(response_stream)
 
 system_prompt_summary = "Anda adalah asisten yang menganalisis konten beberapa halaman relevan dari situs web berita dan membuat kesimpulan serta inti berita untuk calon pembaca." \
 "Tanggapi dalam format Markdown. Sertakan detail jika Anda memiliki informasinya."
@@ -209,14 +226,19 @@ def get_summary_user_prompt(url):
     return user_prompt
 
 def create_summary(url):
-    VectorStore(url)
-    response = openai.chat.completions.create(
+    # Bagian ini tetap sinkron (tidak di-stream) karena membangun VectorDB harus selesai dulu.
+    # VectorStore(url)
+    
+    # Panggilan API untuk rangkuman sekarang di-stream.
+    response_stream = openai.chat.completions.create(
         model=MODEL,
         messages=[
             {"role": "system", "content": system_prompt_summary},
             {"role": "user", "content": get_summary_user_prompt(url)}
           ],
+        stream=True
     )
-    result = response.choices[0].message.content
-    return result
+    
+    # Kembalikan generator stream-nya.
+    return stream_response_generator(response_stream)
 
